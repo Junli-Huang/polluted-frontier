@@ -1,10 +1,10 @@
-# 《雾下余粮》当前游戏状态
+# 《污染边境》当前游戏状态
 
 > 本文档是当前 `main` 实现状态的单一事实来源；实际代码行为优先于本文档，历史设计文档不代表当前规则。
 
 - 当前版本：V3.0.0-dev Expedition Rebuild
 - 当前基线：V1 最后稳定远征结构（`1dfe0efaaf07846efc4973f335672d5cc70c83a8`，`V1.3.9 Simple Fog Mask`）
-- 公开体验：[GitHub Pages](https://junli-huang.github.io/game_a_try/)
+- 公开体验：[GitHub Pages](https://junli-huang.github.io/polluted-frontier/)
 
 ## 1. 当前定位
 

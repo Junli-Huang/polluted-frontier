@@ -103,7 +103,7 @@ function renderMain() {
       <div class="menu-fog"></div>
       <div class="menu-copy">
         <p class="eyebrow">A LIGHT EXTRACTION SURVIVAL</p>
-        <h1>雾下余粮</h1>
+        <h1>污染边境</h1>
         <p class="tagline">活下去，需要吃掉一些不该入口的东西。</p>
         <div class="menu-actions">
           ${button('开始游戏', 'start', 'primary')}
@@ -126,7 +126,7 @@ function renderMain() {
 }
 
 function renderAbout() {
-  showModal('关于《雾下余粮》', '一个关于生存、饥饿与污染的轻量搜打撤原型。\n\n安全食物让你保持清醒；怪物肉让你活下去，也让你变得更强。', [{ label: '返回', action: closeModal }]);
+  showModal('关于《污染边境》', '一个关于生存、饥饿与污染的轻量搜打撤原型。\n\n安全食物让你保持清醒；怪物肉让你活下去，也让你变得更强。', [{ label: '返回', action: closeModal }]);
 }
 
 function madnessStage(value) {

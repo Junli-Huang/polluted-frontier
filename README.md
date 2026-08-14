@@ -1,4 +1,4 @@
-# 雾下余粮（V3.0.0-dev · Expedition Rebuild）
+# 污染边境（V3.0.0-dev · Expedition Rebuild）
 
 一个轻量化的“保护区准备 → 单次户外远征 → 搜索、战斗、切割与撤离 → 返回结算”H5 生存探索 Demo。
 
@@ -61,4 +61,4 @@ npm test
 npm run build
 ```
 
-在线体验：[GitHub Pages](https://junli-huang.github.io/game_a_try/)
+在线体验：[GitHub Pages](https://junli-huang.github.io/polluted-frontier/)
