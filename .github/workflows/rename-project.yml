@@ -32,6 +32,8 @@ jobs:
           for path in Path('.').rglob('*'):
               if not path.is_file() or any(part in skip_dirs for part in path.parts):
                   continue
+              if path.as_posix().startswith('.github/workflows/'):
+                  continue
               try:
                   text = path.read_text(encoding='utf-8')
               except (UnicodeDecodeError, OSError):
