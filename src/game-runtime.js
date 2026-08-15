@@ -28,10 +28,41 @@ const manhattan = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 const keyOf = (x, y) => `${x},${y}`;
 const clone = (value) => structuredClone(value);
 
+const FORMAL_ART_FILES = {
+  ground: './assets/art/terrain-ground.svg', obstacle: './assets/art/terrain-obstacle.svg',
+  player: './assets/art/player.svg', enemy: './assets/art/enemy.svg', nest: './assets/art/nest.svg',
+  corpse: './assets/art/corpse.svg', extract: './assets/art/extract.svg', fog: './assets/art/fog.svg',
+  facing: './assets/art/facing-arrow.svg', alert: './assets/art/alert.svg'
+};
+
+function createFormalArt(onReady) {
+  const assets = {};
+  if (typeof Image === 'undefined') return assets;
+  for (const [key, src] of Object.entries(FORMAL_ART_FILES)) {
+    const image = new Image();
+    image.decoding = 'async';
+    image.onload = () => onReady?.();
+    image.src = src;
+    assets[key] = image;
+  }
+  return assets;
+}
+
+function drawImageCover(ctx, image, x, y, width, height, alpha = 1) {
+  if (!image?.complete || !image.naturalWidth) return false;
+  const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
+  const sw = width / scale, sh = height / scale;
+  const sx = (image.naturalWidth - sw) / 2, sy = (image.naturalHeight - sh) / 2;
+  ctx.save(); ctx.globalAlpha = alpha; ctx.drawImage(image, sx, sy, sw, sh, x, y, width, height); ctx.restore();
+  return true;
+}
+
+
 export class GridExplorationRuntime {
   constructor(canvas, config, save, callbacks = {}) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
+    this.art = createFormalArt(() => this.render());
     this.config = config;
     this.save = save;
     this.callbacks = callbacks;
@@ -906,8 +937,7 @@ export class GridExplorationRuntime {
     const viewportTiles = this.tiles.filter((tile) => tile.x >= camera.x && tile.y >= camera.y && tile.x < camera.x + this.viewWidth && tile.y < camera.y + this.viewHeight);
     viewportTiles.forEach((tile) => {
       const px = (tile.x - camera.x) * size, py = (tile.y - camera.y) * size;
-      ctx.fillStyle = tile.walkable ? '#293d35' : '#15221e'; ctx.fillRect(px, py, size, size);
-      this.drawGroundTexture(px, py, size, tile);
+      this.drawTerrainArt(px, py, size, tile);
     });
     this.drawSubtleGrid(camera, viewportTiles);
     this.drawEnemyVisionCones(camera);
@@ -927,6 +957,17 @@ export class GridExplorationRuntime {
     this.drawPlayer(camera);
     this.callbacks.onHud?.(this.getHud());
   }
+
+  drawTerrainArt(px, py, size, tile) {
+  const image = tile.walkable ? this.art.ground : this.art.obstacle;
+  if (!drawImageCover(this.ctx, image, px, py, size, size, tile.walkable ? 1 : .96)) {
+    this.ctx.fillStyle = tile.walkable ? '#30382f' : '#1b211d'; this.ctx.fillRect(px, py, size, size);
+  }
+  if (tile.walkable) {
+    const variation = (seededFogJitter(tile.x, tile.y) + 1) * .5;
+    this.ctx.fillStyle = `rgba(11,15,12,${.08 + variation * .09})`; this.ctx.fillRect(px, py, size, size);
+  }
+}
 
   drawGroundTexture(px, py, size, tile) {
     if (!tile.walkable) return;
@@ -996,18 +1037,17 @@ export class GridExplorationRuntime {
   }
 
   drawFog(camera, tiles) {
-    const ctx = this.ctx, size = this.tileSize;
-    ctx.save();
-    ctx.fillStyle = '#050807';
-    for (const tile of tiles) {
-      if (tile.visibility !== 'unexplored') continue;
-      const px = (tile.x - camera.x) * size, py = (tile.y - camera.y) * size;
-      ctx.fillRect(px, py, size, size);
+  const ctx = this.ctx, size = this.tileSize;
+  for (const tile of tiles) {
+    if (tile.visibility !== 'unexplored') continue;
+    const px = (tile.x - camera.x) * size, py = (tile.y - camera.y) * size;
+    if (!drawImageCover(ctx, this.art.fog, px - 2, py - 2, size + 4, size + 4, .97)) {
+      ctx.fillStyle = '#050807'; ctx.fillRect(px, py, size, size);
     }
-    ctx.restore();
   }
+}
 
-  drawEnemy(px, py, size, enemy, memory) {
+drawEnemy(px, py, size, enemy, memory) {
     const ctx = this.ctx; ctx.save(); ctx.globalAlpha = memory ? .42 : 1;
     ctx.fillStyle = enemy.color; ctx.beginPath();
     if (enemy.isSpawner) {
@@ -1062,11 +1102,13 @@ export class GridExplorationRuntime {
   }
 
   drawCorpse(px, py, size, memory) {
-    const ctx = this.ctx; ctx.save(); ctx.globalAlpha = memory ? .38 : 1; ctx.fillStyle = '#8a7c68';
-    ctx.beginPath(); ctx.ellipse(px + size / 2, py + size / 2, size * .28, size * .12, -.3, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  const alpha = memory ? .36 : .92;
+  if (!drawImageCover(this.ctx, this.art.corpse, px + size * .02, py + size * .18, size * .96, size * .72, alpha)) {
+    this.ctx.fillStyle = '#55473b'; this.ctx.fillRect(px + size * .2, py + size * .42, size * .6, size * .18);
   }
+}
 
-  drawExtract(px, py, size, memory) {
+drawExtract(px, py, size, memory) {
     const ctx = this.ctx; ctx.save(); ctx.globalAlpha = memory ? .55 : 1; ctx.strokeStyle = '#b7f4d3'; ctx.lineWidth = 2;
     ctx.strokeRect(px + 5, py + 5, size - 10, size - 10); ctx.restore();
   }
@@ -1079,9 +1121,12 @@ export class GridExplorationRuntime {
   }
 
   drawPlayer(camera) {
-    const ctx = this.ctx, size = this.tileSize, px = (this.player.x - camera.x) * size, py = (this.player.y - camera.y) * size;
-    ctx.fillStyle = '#d9f1e4'; ctx.beginPath(); ctx.arc(px + size / 2, py + size / 2, size * .3, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#263a33'; ctx.beginPath(); ctx.arc(px + size * .59, py + size * .43, size * .06, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#d9c17d'; ctx.lineWidth = 2; ctx.strokeRect(px + 2, py + 2, size - 4, size - 4);
+  const ctx = this.ctx, size = this.tileSize, px = (this.player.x - camera.x) * size, py = (this.player.y - camera.y) * size;
+  ctx.save();
+  ctx.shadowColor = 'rgba(218,205,157,.35)'; ctx.shadowBlur = Math.max(4, size * .22);
+  if (!drawImageCover(ctx, this.art.player, px - size * .05, py - size * .16, size * 1.1, size * 1.18, 1)) {
+    ctx.fillStyle = '#d9d0ae'; ctx.fillRect(px + size * .3, py + size * .18, size * .4, size * .64);
   }
+  ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(214,194,132,.65)'; ctx.lineWidth = Math.max(1, size * .035); ctx.strokeRect(px + 2, py + 2, size - 4, size - 4); ctx.restore();
+}
 }
