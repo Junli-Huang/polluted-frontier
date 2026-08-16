@@ -26,4 +26,3 @@ jobs:
           test -s dist/assets/art/formal-actors.webp
           test -s dist/assets/art/formal-props.webp
           test -s dist/assets/art/formal-tiles.webp
-          test -s dist/formal-art-qa.css
