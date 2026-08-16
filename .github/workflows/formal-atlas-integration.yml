@@ -30,8 +30,20 @@ jobs:
           grep -aq 'WEBP' public/assets/art/formal-actors.webp
           grep -aq 'WEBP' public/assets/art/formal-props.webp
           grep -aq 'WEBP' public/assets/art/formal-tiles.webp
-      - name: Apply runtime atlas integration
-        run: python3 scripts/apply-formal-atlas.py
+      - name: Fix integration matcher and apply
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/apply-formal-atlas.py')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace(
+              'terrain_pattern = re.compile(r"  drawTerrainArt\\(px, py, size, tile\\) \\{.*?\\n  \\}\\n\\n  drawGroundTexture", re.S)',
+              'terrain_pattern = re.compile(r"  drawTerrainArt\\(px, py, size, tile\\) \\{.*?\\n\\}\\n\\n  drawGroundTexture", re.S)'
+          )
+          p.write_text(s, encoding='utf-8')
+          PY
+          python3 scripts/apply-formal-atlas.py
       - name: Verify
         shell: bash
         run: |
