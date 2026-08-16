@@ -356,12 +356,12 @@ function startExpedition() {
     <section class="game-screen madness-${madnessView.id} ${config.madnessPresentation.reducedMotion ? 'reduced-motion' : ''}">
       <div class="madness-overlay" aria-hidden="true"></div>
       <div class="exploration-layout"><canvas id="game" width="760" height="760"></canvas><aside class="exploration-side">
-        <span class="eyebrow">OUTDOOR_EXPLORATION</span><h3>${config.maps[0].name}</h3>
-        <p>亮色是当前视野，暗色是最后记忆，黑色区域尚未探索。</p>
+        <span class="eyebrow">污染区远征</span><h3>${config.maps[0].name}</h3>
+        <p>雾会吞掉未探索区域；已探索区域只保留最后一次观察到的信息。</p>
         <div class="legend"><span><i class="player-dot"></i>玩家</span><span><i class="enemy-dot"></i>敌人</span><span><i class="corpse-dot"></i>尸体</span><span><i class="extract-dot"></i>撤离</span></div>
         <div id="turn-message" class="turn-message"></div>
-        <div class="explore-actions">${button('原地等待', 'wait')}${button('使用道具', 'use-item', 'item-button')}<button id="interact-button" data-action="interact" hidden></button>${playtestState ? button('返回地图编辑', 'leave-playtest', 'ghost') : ''}</div>
-        <small>WASD / 方向键移动，也可以点击相邻格</small>
+        <div class="explore-actions">${button('等待一回合', 'wait')}${button('使用补给', 'use-item', 'item-button')}<button id="interact-button" data-action="interact" hidden></button>${playtestState ? button('返回地图编辑', 'leave-playtest', 'ghost') : ''}</div>
+        <small>WASD / 方向键 / 点击相邻格 · E 交互 · 空格战斗快捷操作</small>
       </aside></div>
       <div class="hud">
         <div class="hud-bars">
@@ -497,11 +497,11 @@ function renderBattle(view, act) {
   const names = { attack: '攻击', defend: '防御', item: '道具', escape: `逃跑（${Math.round(config.battle.baseEscapeChance * 100)}%）` };
   layer.hidden = false;
   layer.innerHTML = `<section class="battle-screen">
-    <header><div><span class="eyebrow">BATTLE · ROUND ${view.round}</span><h2>${view.phase === 'player' ? '轮到你行动' : '敌人正在行动…'}</h2></div><span>速度决定先后手</span></header>
+    <header><div><span class="eyebrow">接敌 · ROUND ${view.round}</span><h2>${view.phase === 'player' ? '轮到你行动' : '敌人正在行动…'}</h2></div><span>观察敌人状态，决定进攻、防御或脱离</span></header>
     <div class="combatants">
-      <article class="combatant player-combatant"><div class="combatant-art">猎</div><h3>幸存者</h3><strong>${view.player.health} / ${view.player.maxHealth} HP</strong><i><b style="width:${view.player.health / view.player.maxHealth * 100}%"></b></i><small>攻击 ${view.player.attack} · 速度 ${view.player.speed} · 抗性 ${formatResource(view.player.madnessResistance)} · 疯狂 ${formatResource(view.player.madness)}</small></article>
+      <article class="combatant player-combatant"><div class="combatant-art" aria-label="幸存者"></div><h3>幸存者</h3><strong>${view.player.health} / ${view.player.maxHealth} HP</strong><i><b style="width:${view.player.health / view.player.maxHealth * 100}%"></b></i><small>攻击 ${view.player.attack} · 速度 ${view.player.speed} · 抗性 ${formatResource(view.player.madnessResistance)} · 疯狂 ${formatResource(view.player.madness)}</small></article>
       <div class="versus">VS</div>
-      <article class="combatant enemy-combatant"><div class="combatant-art" style="--enemy:${view.enemy.color}">异</div><h3>${view.enemy.name}</h3><strong>${view.enemy.health} / ${view.enemy.maxHealth} HP</strong><i><b style="width:${view.enemy.health / view.enemy.maxHealth * 100}%"></b></i><small>攻击 ${view.enemy.attack} · 速度 ${view.enemy.speed}</small></article>
+      <article class="combatant enemy-combatant enemy-${view.enemy.id}"><div class="combatant-art" style="--enemy:${view.enemy.color}" aria-label="${view.enemy.name}"></div><h3>${view.enemy.name}</h3><strong>${view.enemy.health} / ${view.enemy.maxHealth} HP</strong><i><b style="width:${view.enemy.health / view.enemy.maxHealth * 100}%"></b></i><small>攻击 ${view.enemy.attack} · 速度 ${view.enemy.speed}</small></article>
     </div>
     <div class="battle-bottom"><div class="battle-log">${view.log.map((line) => `<p>${line}</p>`).join('')}</div><div id="battle-action-menu" class="battle-actions player-turn"></div></div>
   </section>`;
