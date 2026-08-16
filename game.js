@@ -501,7 +501,7 @@ function renderBattle(view, act) {
     <div class="combatants">
       <article class="combatant player-combatant"><div class="combatant-art" aria-label="幸存者"></div><h3>幸存者</h3><strong>${view.player.health} / ${view.player.maxHealth} HP</strong><i><b style="width:${view.player.health / view.player.maxHealth * 100}%"></b></i><small>攻击 ${view.player.attack} · 速度 ${view.player.speed} · 抗性 ${formatResource(view.player.madnessResistance)} · 疯狂 ${formatResource(view.player.madness)}</small></article>
       <div class="versus">VS</div>
-      <article class="combatant enemy-combatant"><div class="combatant-art" style="--enemy:${view.enemy.color}" aria-label="敌人"></div><h3>${view.enemy.name}</h3><strong>${view.enemy.health} / ${view.enemy.maxHealth} HP</strong><i><b style="width:${view.enemy.health / view.enemy.maxHealth * 100}%"></b></i><small>攻击 ${view.enemy.attack} · 速度 ${view.enemy.speed}</small></article>
+      <article class="combatant enemy-combatant enemy-${view.enemy.id}"><div class="combatant-art" style="--enemy:${view.enemy.color}" aria-label="${view.enemy.name}"></div><h3>${view.enemy.name}</h3><strong>${view.enemy.health} / ${view.enemy.maxHealth} HP</strong><i><b style="width:${view.enemy.health / view.enemy.maxHealth * 100}%"></b></i><small>攻击 ${view.enemy.attack} · 速度 ${view.enemy.speed}</small></article>
     </div>
     <div class="battle-bottom"><div class="battle-log">${view.log.map((line) => `<p>${line}</p>`).join('')}</div><div id="battle-action-menu" class="battle-actions player-turn"></div></div>
   </section>`;

@@ -29,10 +29,29 @@ const keyOf = (x, y) => `${x},${y}`;
 const clone = (value) => structuredClone(value);
 
 const FORMAL_ART_FILES = {
-  ground: './assets/art/terrain-ground.svg', obstacle: './assets/art/terrain-obstacle.svg',
-  player: './assets/art/player.svg', enemy: './assets/art/enemy.svg', nest: './assets/art/nest.svg',
-  corpse: './assets/art/corpse.svg', extract: './assets/art/extract.svg', fog: './assets/art/fog.svg',
-  facing: './assets/art/facing-arrow.svg', alert: './assets/art/alert.svg'
+  actors: './assets/art/formal-actors.webp',
+  props: './assets/art/formal-props.webp',
+  tiles: './assets/art/formal-tiles.webp',
+  fog: './assets/art/fog.svg',
+  facing: './assets/art/facing-arrow.svg',
+  alert: './assets/art/alert.svg'
+};
+
+const FORMAL_ART_FRAMES = {
+  player: { atlas: 'actors', x: 0, y: 0, w: 220, h: 300 },
+  stalker: { atlas: 'actors', x: 220, y: 0, w: 220, h: 300 },
+  brute: { atlas: 'actors', x: 440, y: 0, w: 220, h: 300 },
+  hound: { atlas: 'actors', x: 660, y: 0, w: 220, h: 300 },
+  nest: { atlas: 'actors', x: 880, y: 0, w: 220, h: 300 },
+  corpse: { atlas: 'props', x: 0, y: 0, w: 220, h: 220 },
+  extract: { atlas: 'props', x: 220, y: 0, w: 220, h: 220 }
+};
+
+const MONSTER_ART = {
+  passive: 'brute',
+  wanderer: 'stalker',
+  tracker: 'hound',
+  basic_nest: 'nest'
 };
 
 function createFormalArt(onReady) {
@@ -54,6 +73,34 @@ function drawImageCover(ctx, image, x, y, width, height, alpha = 1) {
   const sw = width / scale, sh = height / scale;
   const sx = (image.naturalWidth - sw) / 2, sy = (image.naturalHeight - sh) / 2;
   ctx.save(); ctx.globalAlpha = alpha; ctx.drawImage(image, sx, sy, sw, sh, x, y, width, height); ctx.restore();
+  return true;
+}
+
+function drawAtlasFrame(ctx, assets, frameKey, x, y, width, height, alpha = 1, fit = 'contain') {
+  const frame = FORMAL_ART_FRAMES[frameKey];
+  const image = frame ? assets[frame.atlas] : null;
+  if (!frame || !image?.complete || !image.naturalWidth) return false;
+  const scale = fit === 'cover'
+    ? Math.max(width / frame.w, height / frame.h)
+    : Math.min(width / frame.w, height / frame.h);
+  const dw = frame.w * scale, dh = frame.h * scale;
+  const dx = x + (width - dw) / 2, dy = y + (height - dh) / 2;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(image, frame.x, frame.y, frame.w, frame.h, dx, dy, dw, dh);
+  ctx.restore();
+  return true;
+}
+
+function tileAtlasFrame(tile, variant) {
+  return { x: (variant % 4) * 128, y: tile.walkable ? 0 : 128, w: 128, h: 128 };
+}
+
+function drawTileAtlas(ctx, image, frame, x, y, size, alpha = 1) {
+  if (!image?.complete || !image.naturalWidth) return false;
+  ctx.save(); ctx.globalAlpha = alpha;
+  ctx.drawImage(image, frame.x, frame.y, frame.w, frame.h, x, y, size, size);
+  ctx.restore();
   return true;
 }
 
@@ -208,7 +255,7 @@ export class GridExplorationRuntime {
     const corpse = this.corpseAt(x, y);
     return {
       enemy: monster ? {
-        id: monster.id, name: monster.config.name, color: monster.config.color, state: monster.state,
+        id: monster.id, typeId: monster.config.id, name: monster.config.name, color: monster.config.color, state: monster.state,
         facing: monster.facing, visionEnabled: Boolean(monster.config.vision?.enabled),
         isSpawner: Boolean(monster.config.spawnConfig?.enabled)
       } : null,
@@ -866,7 +913,7 @@ export class GridExplorationRuntime {
         meat: this.player.loot.monsterMeat.length,
         meatMadness: this.player.loot.monsterMeat.length ? Math.min(...this.player.loot.monsterMeat.map((meat) => meat.currentMadness)) : 0
       },
-      enemy: { name: this.battle.monster.config.name, health: this.battle.monster.health, maxHealth: this.battle.monster.config.health, attack: this.battle.monster.config.attack, speed: this.battle.monster.config.speed, color: this.battle.monster.config.color },
+      enemy: { id: this.battle.monster.config.id, name: this.battle.monster.config.name, health: this.battle.monster.health, maxHealth: this.battle.monster.config.health, attack: this.battle.monster.config.attack, speed: this.battle.monster.config.speed, color: this.battle.monster.config.color },
       actions: this.config.battle.playerActions,
       log: this.battle.log.slice(-5)
     };
@@ -959,15 +1006,18 @@ export class GridExplorationRuntime {
   }
 
   drawTerrainArt(px, py, size, tile) {
-  const image = tile.walkable ? this.art.ground : this.art.obstacle;
-  if (!drawImageCover(this.ctx, image, px, py, size, size, tile.walkable ? 1 : .96)) {
-    this.ctx.fillStyle = tile.walkable ? '#30382f' : '#1b211d'; this.ctx.fillRect(px, py, size, size);
+    const variation = Math.floor(((seededFogJitter(tile.x, tile.y) + 1) * .5) * 4) % 4;
+    const frame = tileAtlasFrame(tile, variation);
+    if (!drawTileAtlas(this.ctx, this.art.tiles, frame, px, py, size, tile.walkable ? 1 : .98)) {
+      this.ctx.fillStyle = tile.walkable ? '#30382f' : '#1b211d';
+      this.ctx.fillRect(px, py, size, size);
+    }
+    if (tile.walkable) {
+      const shade = (seededFogJitter(tile.x + 31, tile.y + 17) + 1) * .5;
+      this.ctx.fillStyle = `rgba(8,12,10,${.035 + shade * .075})`;
+      this.ctx.fillRect(px, py, size, size);
+    }
   }
-  if (tile.walkable) {
-    const variation = (seededFogJitter(tile.x, tile.y) + 1) * .5;
-    this.ctx.fillStyle = `rgba(11,15,12,${.08 + variation * .09})`; this.ctx.fillRect(px, py, size, size);
-  }
-}
 
   drawGroundTexture(px, py, size, tile) {
     if (!tile.walkable) return;
@@ -1048,32 +1098,49 @@ export class GridExplorationRuntime {
 }
 
 drawEnemy(px, py, size, enemy, memory) {
-    const ctx = this.ctx; ctx.save(); ctx.globalAlpha = memory ? .42 : 1;
-    ctx.fillStyle = enemy.color; ctx.beginPath();
-    if (enemy.isSpawner) {
-      ctx.moveTo(px + size * .5, py + size * .15);
-      for (let index = 1; index < 10; index += 1) {
-        const angle = -Math.PI / 2 + index * Math.PI * 2 / 10;
-        const radius = index % 2 ? size * .2 : size * .34;
-        ctx.lineTo(px + size * .5 + Math.cos(angle) * radius, py + size * .5 + Math.sin(angle) * radius);
-      }
-      ctx.closePath(); ctx.fill();
-    } else { ctx.arc(px + size / 2, py + size / 2, size * .25, 0, Math.PI * 2); ctx.fill(); }
+    const ctx = this.ctx;
+    const artKey = enemy.isSpawner ? 'nest' : (MONSTER_ART[enemy.typeId] || 'stalker');
+    const alpha = memory ? .42 : 1;
+    ctx.save();
+    ctx.shadowColor = memory ? 'transparent' : 'rgba(0,0,0,.7)';
+    ctx.shadowBlur = memory ? 0 : Math.max(3, size * .16);
+    const drawn = drawAtlasFrame(
+      ctx, this.art, artKey,
+      px - size * (enemy.isSpawner ? .22 : .18),
+      py - size * (enemy.isSpawner ? .18 : .32),
+      size * (enemy.isSpawner ? 1.44 : 1.36),
+      size * (enemy.isSpawner ? 1.36 : 1.55),
+      alpha
+    );
+    ctx.shadowBlur = 0;
+    if (!drawn) {
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = enemy.color;
+      ctx.beginPath(); ctx.arc(px + size / 2, py + size / 2, size * .25, 0, Math.PI * 2); ctx.fill();
+    }
     if (!memory && enemy.visionEnabled && !enemy.isSpawner) {
       const angle = directionAngle(enemy.facing);
       const centerX = px + size / 2, centerY = py + size / 2;
       ctx.translate(centerX, centerY); ctx.rotate(angle);
-      ctx.fillStyle = '#f4ecd4'; ctx.beginPath();
-      ctx.moveTo(size * .39, 0); ctx.lineTo(size * .17, -size * .09); ctx.lineTo(size * .17, size * .09);
-      ctx.closePath(); ctx.fill();
+      if (!drawImageCover(ctx, this.art.facing, size * .15, -size * .1, size * .28, size * .2, .88)) {
+        ctx.fillStyle = '#efe4c7'; ctx.beginPath();
+        ctx.moveTo(size * .39, 0); ctx.lineTo(size * .17, -size * .09); ctx.lineTo(size * .17, size * .09);
+        ctx.closePath(); ctx.fill();
+      }
       ctx.rotate(-angle); ctx.translate(-centerX, -centerY);
     }
     if (!memory && ['Alert', 'Chase', 'AttackIntent'].includes(enemy.state)) {
-      ctx.fillStyle = enemy.state === 'AttackIntent' ? '#ff5f5f' : '#f5d078';
-      ctx.font = `700 ${size * .42}px sans-serif`; ctx.textAlign = 'center';
-      ctx.fillText(enemy.state === 'Alert' ? '!' : enemy.state === 'AttackIntent' ? '⚠' : '↓', px + size / 2, py + size * .24);
+      const noticeAlpha = enemy.state === 'AttackIntent' ? 1 : .9;
+      if (!drawImageCover(ctx, this.art.alert, px + size * .31, py - size * .16, size * .38, size * .38, noticeAlpha)) {
+        ctx.fillStyle = enemy.state === 'AttackIntent' ? '#ff705d' : '#e4c06b';
+        ctx.font = `700 ${size * .42}px sans-serif`; ctx.textAlign = 'center';
+        ctx.fillText('!', px + size / 2, py + size * .22);
+      }
     }
-    if (memory) { ctx.fillStyle = '#e5d5a1'; ctx.font = `${size * .35}px serif`; ctx.textAlign = 'center'; ctx.fillText('?', px + size * .75, py + size * .35); }
+    if (memory) {
+      ctx.fillStyle = '#d7c89e'; ctx.font = `${size * .28}px serif`; ctx.textAlign = 'center';
+      ctx.fillText('?', px + size * .78, py + size * .3);
+    }
     ctx.restore();
   }
 
@@ -1102,15 +1169,18 @@ drawEnemy(px, py, size, enemy, memory) {
   }
 
   drawCorpse(px, py, size, memory) {
-  const alpha = memory ? .36 : .92;
-  if (!drawImageCover(this.ctx, this.art.corpse, px + size * .02, py + size * .18, size * .96, size * .72, alpha)) {
-    this.ctx.fillStyle = '#55473b'; this.ctx.fillRect(px + size * .2, py + size * .42, size * .6, size * .18);
+    const alpha = memory ? .34 : .96;
+    if (!drawAtlasFrame(this.ctx, this.art, 'corpse', px - size * .12, py + size * .08, size * 1.24, size * .96, alpha)) {
+      this.ctx.fillStyle = '#55473b'; this.ctx.fillRect(px + size * .2, py + size * .42, size * .6, size * .18);
+    }
   }
-}
 
-drawExtract(px, py, size, memory) {
-    const ctx = this.ctx; ctx.save(); ctx.globalAlpha = memory ? .55 : 1; ctx.strokeStyle = '#b7f4d3'; ctx.lineWidth = 2;
-    ctx.strokeRect(px + 5, py + 5, size - 10, size - 10); ctx.restore();
+  drawExtract(px, py, size, memory) {
+    const alpha = memory ? .48 : 1;
+    if (!drawAtlasFrame(this.ctx, this.art, 'extract', px - size * .12, py - size * .2, size * 1.24, size * 1.42, alpha)) {
+      const ctx = this.ctx; ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = '#b7f4d3'; ctx.lineWidth = 2;
+      ctx.strokeRect(px + 5, py + 5, size - 10, size - 10); ctx.restore();
+    }
   }
 
   getCamera() {
@@ -1121,12 +1191,13 @@ drawExtract(px, py, size, memory) {
   }
 
   drawPlayer(camera) {
-  const ctx = this.ctx, size = this.tileSize, px = (this.player.x - camera.x) * size, py = (this.player.y - camera.y) * size;
-  ctx.save();
-  ctx.shadowColor = 'rgba(218,205,157,.35)'; ctx.shadowBlur = Math.max(4, size * .22);
-  if (!drawImageCover(ctx, this.art.player, px - size * .05, py - size * .16, size * 1.1, size * 1.18, 1)) {
-    ctx.fillStyle = '#d9d0ae'; ctx.fillRect(px + size * .3, py + size * .18, size * .4, size * .64);
+    const ctx = this.ctx, size = this.tileSize, px = (this.player.x - camera.x) * size, py = (this.player.y - camera.y) * size;
+    ctx.save();
+    ctx.shadowColor = 'rgba(221,201,142,.38)'; ctx.shadowBlur = Math.max(4, size * .2);
+    if (!drawAtlasFrame(ctx, this.art, 'player', px - size * .14, py - size * .38, size * 1.28, size * 1.7, 1)) {
+      ctx.fillStyle = '#d9d0ae'; ctx.fillRect(px + size * .3, py + size * .18, size * .4, size * .64);
+    }
+    ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(214,194,132,.58)'; ctx.lineWidth = Math.max(1, size * .03);
+    ctx.strokeRect(px + 2, py + 2, size - 4, size - 4); ctx.restore();
   }
-  ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(214,194,132,.65)'; ctx.lineWidth = Math.max(1, size * .035); ctx.strokeRect(px + 2, py + 2, size - 4, size - 4); ctx.restore();
-}
 }
