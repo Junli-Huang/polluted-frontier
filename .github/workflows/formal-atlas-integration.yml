@@ -1,0 +1,55 @@
+name: Formal atlas integration
+
+on:
+  push:
+    paths:
+      - '.github/workflows/formal-atlas-integration.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/formal-art-pass
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify generated art atlases
+        shell: bash
+        run: |
+          set -euo pipefail
+          file public/assets/art/formal-actors.webp public/assets/art/formal-props.webp public/assets/art/formal-tiles.webp
+          test -s public/assets/art/formal-actors.webp
+          test -s public/assets/art/formal-props.webp
+          test -s public/assets/art/formal-tiles.webp
+          grep -aq 'WEBP' public/assets/art/formal-actors.webp
+          grep -aq 'WEBP' public/assets/art/formal-props.webp
+          grep -aq 'WEBP' public/assets/art/formal-tiles.webp
+      - name: Apply runtime atlas integration
+        run: python3 scripts/apply-formal-atlas.py
+      - name: Verify
+        shell: bash
+        run: |
+          npm ci
+          npm test
+          npm run build
+          test -s dist/assets/art/formal-actors.webp
+          test -s dist/assets/art/formal-props.webp
+          test -s dist/assets/art/formal-tiles.webp
+      - name: Commit integration
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/game-runtime.js game.js formal-art.css docs/design/v3.1-formal-art-pass.md
+          if git diff --cached --quiet; then
+            echo 'No changes.'
+            exit 0
+          fi
+          git commit -m 'feat: integrate generated formal art atlases'
+          git push origin HEAD:agent/formal-art-pass
